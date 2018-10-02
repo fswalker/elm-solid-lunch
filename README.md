@@ -4,7 +4,7 @@ Rewrite of solid app lunch time [tutorial](https://solid.inrupt.com/docs/app-on-
 
 ## Build
 
-`elm make src/Main.elm --output=main.js`
+`elm make src/Main.elm --output=scripts/main.js`
 
 ## Run
 

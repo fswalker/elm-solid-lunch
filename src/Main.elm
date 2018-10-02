@@ -1,24 +1,75 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div)
+import Html exposing (Html, button, div, p, span, text)
+import Html.Events exposing (onClick)
+import Json.Decode as D exposing (Decoder)
+import Json.Encode as E
+import Ports
 
+type Model 
+    = Anonymous
+    | LoggedIn String
 
-init : () -> ( (), Cmd msg)
-init flags = ((), Cmd.none)
+type alias WebId = String
 
-view : () -> Html msg
+type Msg
+    = NoOp
+    | AuthRequest
+    | LogIn WebId
+    | LogOut
+
+init : () -> (Model, Cmd Msg)
+init flags = (Anonymous, Cmd.none)
+
+view : Model -> Html Msg
 view model = 
-    div [] []
+    case model of
+        Anonymous ->
+            div [] 
+                [ p [] [ text "You are not logged in." ]
+                , button [ onClick AuthRequest ] [ text "Log in" ]
+                ]
+        LoggedIn user ->
+            div [] 
+                [ p [] [ text "You are logged in as:" ]
+                , p [] [ span [] [ text user ] ]
+                , button [ onClick LogOut ] [ text "Log out" ]
+                ]
 
-update : () -> msg -> ((), Cmd msg)
-update model msg = (model, Cmd.none)
 
-subscriptions : () -> Sub msg
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model = 
+    case msg of
+        NoOp ->
+            (model, Cmd.none)
+        AuthRequest ->
+            if model == Anonymous then
+                (model, Ports.authRequest ())
+            else
+                (model, Cmd.none)
+        LogOut ->
+            if model /= Anonymous then
+                (Anonymous, Ports.logout ())
+            else
+                (model, Cmd.none)
+        LogIn user ->
+            if model == Anonymous then
+                (LoggedIn user, Cmd.none)
+            else
+                (model, Cmd.none)
+
+sessionSubscriptionHandler : D.Value -> Msg
+sessionSubscriptionHandler =
+    D.decodeValue D.string
+    >> Result.map LogIn
+    >> Result.withDefault LogOut
+
+subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Ports.trackSession sessionSubscriptionHandler
 
-main : Program () () ()
+main : Program () Model Msg
 main =
     Browser.element
         { init = init

@@ -4,7 +4,8 @@
 <head>
     <meta charset="utf-8">
     <title>Profile Viewer</title>
-    <script src="main.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/solid-auth-client.bundle.js"></script>
 </head>
 
 <body>
@@ -13,6 +14,19 @@
     <script>
         const app = Elm.Main.init({
             node: document.getElementById('elm')
+        });
+        solid.auth.trackSession(session => {
+            console.log('solid::trackSession', session);
+            app.ports.trackSession.send(session && session.webId);
+        });
+        app.ports.authRequest.subscribe(() => {
+            console.log('solid::popupLogin');
+            const popupUri = 'popup.html';
+            solid.auth.popupLogin({ popupUri });
+        });
+        app.ports.logout.subscribe(() => {
+            console.log('solid::logout');
+            solid.auth.logout();
         });
     </script>
 </body>
