@@ -7,11 +7,11 @@ import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
 import Ports
 
+type alias WebId = String
+
 type Model 
     = Anonymous
-    | LoggedIn String
-
-type alias WebId = String
+    | LoggedIn WebId
 
 type Msg
     = NoOp
@@ -30,10 +30,10 @@ view model =
                 [ p [] [ text "You are not logged in." ]
                 , button [ onClick AuthRequest ] [ text "Log in" ]
                 ]
-        LoggedIn user ->
+        LoggedIn webId ->
             div [] 
                 [ p [] [ text "You are logged in as:" ]
-                , p [] [ span [] [ text user ] ]
+                , p [] [ span [] [ text webId ] ]
                 , button [ onClick LogOut ] [ text "Log out" ]
                 ]
 
@@ -53,9 +53,9 @@ update msg model =
                 (Anonymous, Ports.logout ())
             else
                 (model, Cmd.none)
-        LogIn user ->
+        LogIn webId ->
             if model == Anonymous then
-                (LoggedIn user, Cmd.none)
+                (LoggedIn webId, Cmd.none)
             else
                 (model, Cmd.none)
 
