@@ -6,12 +6,14 @@
     <title>Profile Viewer</title>
     <script src="scripts/main.js"></script>
     <script src="scripts/solid-auth-client.bundle.js"></script>
+    <script src="scripts/rdflib.min.js"></script>
 </head>
 
 <body>
     <h1>Profile viewer</h1>
     <div id="elm"></div>
     <script>
+        const FOAF = $rdf.Namespace('http://xmlns.com/foaf/0.1/');
         const app = Elm.Main.init({
             node: document.getElementById('elm')
         });
@@ -27,6 +29,21 @@
         app.ports.logout.subscribe(() => {
             console.log('solid::logout');
             solid.auth.logout();
+        });
+        app.ports.fetchProfile.subscribe(async function fetchProfile(person) {
+            console.log('solid::fetchProfile (person)', person);
+
+            // Set up a local data store and associated data fetcher
+            const store = $rdf.graph();
+            const fetcher = new $rdf.Fetcher(store);
+
+            // Load the person's data into the store
+            await fetcher.load(person);
+
+            // Display their details
+            const fullName = store.any($rdf.sym(person), FOAF('name'));
+            console.log('solid::loadProfile (fullName)', fullName);
+            app.ports.loadProfile.send(fullName && fullName.value);
         });
     </script>
 </body>
