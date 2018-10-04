@@ -43,7 +43,26 @@
             // Display their details
             const fullName = store.any($rdf.sym(person), FOAF('name'));
             console.log('solid::loadProfile (fullName)', fullName);
-            app.ports.loadProfile.send(fullName && fullName.value);
+
+            const friends = store.each($rdf.sym(person), FOAF('knows'));
+            const friendsPromises = friends.map(friend =>
+                fetcher.load(friend)
+                    .then(response => {
+                        console.log('friend res', response);
+                        const name = store.any(friend, FOAF('name'));
+                        console.log('friend name', name);
+                        return name && name.value || friend.value;
+                    })
+                    .catch(err => { console.error('err', err); return false; })
+            );
+            console.log('friendsPromises', friendsPromises);
+            Promise.all(friendsPromises)
+                .then(results => {
+                    const finalFriends = results.filter(x => !!x);
+                    console.log('final friends', finalFriends);
+                    // TODO send record with all data; represent loading state for friends?
+                    app.ports.loadProfile.send(fullName && fullName.value);
+                });
         });
     </script>
 </body>
