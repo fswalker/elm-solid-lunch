@@ -2,8 +2,8 @@ port module Main exposing (main)
 
 import Browser
 import Debug
-import Html exposing (Html, button, dl, dt, dd, div, input, label, p, span, text)
-import Html.Attributes exposing (for, id, style, type_, value)
+import Html exposing (Html, a, button, dl, dt, dd, div, input, label, li, p, span, text, ul)
+import Html.Attributes exposing (for, href, id, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
@@ -13,10 +13,20 @@ type alias WebId = String
 
 type alias FullName = String
 
+type alias FriendData =
+    { name  : FullName
+    , webId : WebId
+    }
+
+type alias Profile =
+    { fullName : FullName
+    , friends  : List FriendData
+    }
+
 type alias Data =
     { webId : WebId
     , profileInput : String
-    , fullName : FullName
+    , profile : Maybe Profile
     }
 
 type Model 
@@ -28,9 +38,10 @@ type Msg
     | AuthRequest
     | LogIn WebId
     | LogOut
-    | FetchProfile
-    | LoadProfile FullName
+    | FetchProfile WebId
+    | LoadProfile Profile
     | UpdateProfileInput String
+    | ChooseFriend WebId
 
 init : () -> (Model, Cmd Msg)
 init flags = (Anonymous, Cmd.none)
@@ -57,14 +68,36 @@ view model =
                         , value (if data.profileInput == "" then data.webId else data.profileInput)
                         , onInput UpdateProfileInput
                         ] [ ]
-                    , button [ onClick FetchProfile ] [ text "View" ]
+                    , button [ onClick <| FetchProfile data.profileInput ] [ text "View" ]
                     ]
                 , dl []
                     [ dt [] [ text "Full name" ]
-                    , dd [] [ text data.fullName ]
+                    , dd [] [ text <| Maybe.withDefault "" <| Maybe.map .fullName data.profile ]
+                    , dt [] [ text "Friends" ]
+                    , dd []
+                        [ case data.profile of
+                            Just p ->
+                                ul [] <| List.map displayFriend p.friends
+                            _ -> 
+                                text ""
+                        ]
                     ]
                 ]
 
+displayFriend : FriendData -> Html Msg
+displayFriend friend =
+    li [] 
+        [ a 
+            [ href "#"
+            , onClick (ChooseFriend friend.webId) 
+            ] 
+            [ text <|
+                if friend.name /= "" then 
+                    friend.name 
+                else
+                    friend.webId
+            ] 
+        ]
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = 
@@ -72,7 +105,7 @@ update msg model =
         NoOp ->
             let 
                 _ = 
-                    Debug.log "model" model
+                    Debug.log "msg: NoOp, model:" model
             in
             (model, Cmd.none)
         AuthRequest ->
@@ -87,27 +120,39 @@ update msg model =
                 (model, Cmd.none)
         LogIn webId ->
             if model == Anonymous then
-                (LoggedIn (Data webId webId ""), Cmd.none)
+                (LoggedIn (Data webId webId Nothing), Ports.fetchProfile webId)
             else
                 (model, Cmd.none)
-        FetchProfile ->
+        FetchProfile webId ->
             case model of
                 LoggedIn data ->
-                    (model, Ports.fetchProfile data.profileInput)
+                    (LoggedIn { data | profile = Nothing }, Ports.fetchProfile webId)
                 _ -> 
                     (model, Cmd.none)
-        LoadProfile fullName ->
-            (setModelFullName model fullName, Cmd.none)
+        LoadProfile data ->
+            (setProfile model data, Cmd.none)
         UpdateProfileInput profile ->
             (setModelProfileInput model profile, Cmd.none)
+        ChooseFriend webId ->
+            case model of
+                LoggedIn data ->
+                    (LoggedIn 
+                        { data 
+                        | profileInput = webId
+                        , profile = Nothing
+                        }
+                        , Ports.fetchProfile webId)
+                _ -> 
+                    (model, Cmd.none)
 
 
-setModelFullName : Model -> String -> Model
-setModelFullName model fullName =
+
+setProfile : Model -> Profile -> Model
+setProfile model profile =
     case model of
         Anonymous -> model
         LoggedIn data ->
-            LoggedIn { data | fullName = fullName }
+            LoggedIn { data | profile = Just profile }
 
 setModelProfileInput : Model -> String -> Model
 setModelProfileInput model profile =
@@ -122,9 +167,21 @@ sessionSubscriptionHandler =
     >> Result.map LogIn
     >> Result.withDefault LogOut
 
+profileDecoder : Decoder Profile
+profileDecoder =
+    let
+        friendDecoder =
+            D.map2 FriendData
+                (D.field "name" D.string)
+                (D.field "webId" D.string)
+    in
+        D.map2 Profile
+            (D.field "fullName" D.string)
+            (D.field "friends" (D.list friendDecoder))
+
 loadProfileHandler : D.Value -> Msg
 loadProfileHandler =
-    D.decodeValue D.string
+    D.decodeValue profileDecoder
     >> Result.map LoadProfile
     >> Result.withDefault NoOp
 
