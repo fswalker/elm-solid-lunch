@@ -13,7 +13,6 @@
     <h1>Profile viewer</h1>
     <div id="elm"></div>
     <script>
-        const FOAF = $rdf.Namespace('http://xmlns.com/foaf/0.1/');
         const app = Elm.Main.init({
             node: document.getElementById('elm')
         });
@@ -41,9 +40,33 @@
             await fetcher.load(person);
 
             // Display their details
+            const FOAF = $rdf.Namespace('http://xmlns.com/foaf/0.1/');
             const fullName = store.any($rdf.sym(person), FOAF('name'));
-            console.log('solid::loadProfile (fullName)', fullName);
-            app.ports.loadProfile.send(fullName && fullName.value);
+            console.log('solid::fetchProfile (fullName)', fullName);
+
+            const friends = store.each($rdf.sym(person), FOAF('knows'));
+            const friendsPromises = friends.map(friend =>
+                fetcher.load(friend)
+                    .then(response => {
+                        const name = store.any(friend, FOAF('name'));
+                        return {
+                            name: name && name.value || '',
+                            webId: friend.value
+                        };
+                    })
+                    .catch(err => { console.error('err', err); return false; })
+            );
+            console.log('solid::fetchProfile (friendsPromises)', friendsPromises);
+            Promise.all(friendsPromises)
+                .then(results => {
+                    const finalFriends = results.filter(x => !!x);
+                    const profile = {
+                        fullName: fullName && fullName.value || '',
+                        friends: finalFriends
+                    };
+                    console.log('solid::fetchProfile (profile)', profile);
+                    app.ports.loadProfile.send(profile);
+                });
         });
     </script>
 </body>
