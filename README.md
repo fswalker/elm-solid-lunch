@@ -1,18 +1,3 @@
-# elm-solid-lunch
+# elm-solid-lunch (moved)
 
-Rewrite of solid app lunch time [tutorial](https://solid.inrupt.com/docs/app-on-your-lunch-break) using [Elm](https://elm-lang.org).
-
-## Prerequisites
-
-[Install](https://guide.elm-lang.org/install.html) Elm.
-
-
-## Build
-
-`elm make src/Main.elm --output=scripts/main.js`
-
-## Run
-
-`elm reactor`
-
-Go to index.html
+Moved to the new location: [https://github.com/lambda-mike/elm-solid-lunch](https://github.com/lambda-mike/elm-solid-lunch)
